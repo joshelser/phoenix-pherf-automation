@@ -24,3 +24,6 @@ SSH as "elserj" and run the test as "elserj"
 SSH as "root" and run the test as the unprivileged "elserj"
 
   `./run-pherf root my-ec2-host ~/.ssh/my-ec2-host-keypair.pem elserj`
+
+
+![Console Output](https://raw.githubusercontent.com/joshelser/phoenix-pherf-automation/master/phoenix-pherf-automation.png)
