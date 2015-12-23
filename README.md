@@ -17,11 +17,11 @@ This tool creates a temporary directory for itself beneath `$TMPDIR` for your re
 
 Examples:
 
-SSH as "elserj" and run the test as "elserj"
+SSH as "elserj" and run the test as "elserj":
 
   `./run-pherf elserj my-ec2-host ~/.ssh/my-ec2-host-keypair.pem`
 
-SSH as "root" and run the test as the unprivileged "elserj"
+SSH as "root" and run the test as the unprivileged "elserj":
 
   `./run-pherf root my-ec2-host ~/.ssh/my-ec2-host-keypair.pem elserj`
 
