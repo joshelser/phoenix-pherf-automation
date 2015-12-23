@@ -26,7 +26,7 @@ PHERF_TASKS_FILE="pherf-tasks.txt"
 PHERF_DRIVER_FILE="pherf-driver.py"
 
 fail() {
-  echo -e "${RED}Error: ${NC}$1\n"
+  echo -e "${RED}Error: ${NC}$1 "
   exit 1
 }
 
@@ -116,9 +116,12 @@ fi
 # Run the driver
 status "\nRunning ${PHERF_DRIVER_FILE} as ${test_user}"
 _ssh $user@$h "su -c 'cd ${PHERF_DIR}; python ${PHERF_DRIVER_FILE} 2>&1' - ${test_user}"
+ret_code=$?
 
-if [[ $? -ne 0 ]]; then
-  fail "\nPherf driver did not exit successfully"
+# Get an extra newline in there for readability (separate the output from the final result)
+echo ""
+if [[ $ret_code -ne 0 ]]; then
+  fail "Pherf driver did not exit successfully"
 else
-  status "\nPherf driver exited successfully"
+  status "Pherf driver exited successfully"
 fi
