@@ -24,6 +24,11 @@ USAGE="Usage: run-pherf <ssh_user> <hostname> <private_key> [<test_user>]"
 PHERF_CONFIGS="pherf-configs"
 PHERF_TASKS_FILE="pherf-tasks.txt"
 PHERF_DRIVER_FILE="pherf-driver.py"
+PHERF_INSTALLER_FILE="pherf-installer.py"
+
+# The Hortonworks repository doesn't contain the pherf-*.py scripts...
+PHOENIX_REPOSITORY="https://github.com/apache/phoenix.git"
+PHOENIX_REF="master"
 
 fail() {
   echo -e "${RED}Error: ${NC}$1 "
@@ -107,11 +112,19 @@ _ssh $user@$h test -d $PHERF_DIR || fail "$?: Temporary directory '$PHERF_DIR' d
 status "\nCopying files to remote host"
 _scp ${bin}/$PHERF_DRIVER_FILE "$user@$h":$PHERF_DIR/
 _scp ${bin}/$PHERF_TASKS_FILE "$user@$h":$PHERF_DIR/
+_scp ${bin}/$PHERF_INSTALLER_FILE "$user@$h":$PHERF_DIR/
 _scp -r ${bin}/$PHERF_CONFIGS "$user@$h":$PHERF_DIR/
 
 if [[ $user != $test_user ]]; then
   _ssh $user@$h chown -R $test_user "${PHERF_DIR}" || fail "Failed to change ownership of '$PHERF_DIR' to ${test_user}"
 fi
+
+status "\nChecking out Phoenix repository"
+_ssh $user@$h git clone $PHOENIX_REPOSITORY $PHERF_DIR/phoenix || fail "Failed to clone Phoenix from $PHOENIX_REPOSITORY"
+_ssh $user@$h "cd $PHERF_DIR/phoenix && git checkout $PHOENIX_REF" || fail "Failed to checkout $PHOENIX_REF"
+
+status "\nUpdating Phoenix installation to run pherf"
+_ssh $user@$h "cd $PHERF_DIR; python ${PHERF_INSTALLER_FILE}" || fail "Failed to update Phoenix installation to run pherf."
 
 # Run the driver
 status "\nRunning ${PHERF_DRIVER_FILE} as ${test_user}"
