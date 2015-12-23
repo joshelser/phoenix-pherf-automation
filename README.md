@@ -10,15 +10,17 @@ This tool creates a temporary directory for itself beneath `$TMPDIR` for your re
 
 `./run-pherf <ssh_user> <hostname> <private_key> [<test_user>]`
 
-`ssh_user` (required) is the user to specify to SSH to the remote host
-`hostname` (required) is the address of the remote host
-`private_key` (required) is the path to the private key (the `-i` SSH option)
-`test_user` (optional) the name of the user to `su` to on the remote host before running the pherf tool
+* `ssh_user` (required) is the user to specify to SSH to the remote host
+* `hostname` (required) is the address of the remote host
+* `private_key` (required) is the path to the private key (the `-i` SSH option)
+* `test_user` (optional) the name of the user to `su` to on the remote host before running the pherf tool
 
 Examples:
 
 SSH as "elserj" and run the test as "elserj"
+
   `./run-pherf elserj my-ec2-host ~/.ssh/my-ec2-host-keypair.pem`
 
 SSH as "root" and run the test as the unprivileged "elserj"
+
   `./run-pherf root my-ec2-host ~/.ssh/my-ec2-host-keypair.pem elserj`
