@@ -11,6 +11,7 @@ def main(**kwargs):
   phoenix_home = kwargs['phoenix_home']
   phoenix_repo = kwargs['phoenix_repo']
   hbase_home = kwargs['hbase_home']
+  hadoop_home = kwargs['hadoop_home']
   maven_installation = kwargs['maven_installation']
 
   logger.info("Copying phoenix-pherf directory")
@@ -27,6 +28,9 @@ def main(**kwargs):
 
   # Remove any broken symlinks installed by Ambari
   remove_bad_symlinks(os.path.join(hbase_home, 'lib'))
+  remove_bad_symlinks(os.path.join(hadoop_home, 'lib'))
+
+  copy_extra_phoenix_libs(hbase_home, phoenix_home)
 
   return 0
 
@@ -95,6 +99,15 @@ def remove_bad_symlinks(parent_dir):
       logger.info("Removing broken symlink: %s" % full_path)
       os.remove(full_path)
 
+def copy_extra_phoenix_libs(hbase_home, phoenix_home):
+  jars_to_link = ['commons-csv-1.0.jar']
+  for jar_to_link in jars_to_link:
+    source = os.path.join(phoenix_home, 'lib', jar_to_link)
+    dest = os.path.join(hbase_home, 'lib', jar_to_link)
+    if not os.path.islink(dest):
+      logger.debug("Symlinking %s to %s" % (source, dest))
+      os.symlink(source, dest)
+
 if __name__ == '__main__':
   current_dir = os.path.dirname(os.path.realpath(__file__))
   logging.basicConfig(format='%(asctime)s %(message)s', level=logging.DEBUG)
@@ -103,6 +116,7 @@ if __name__ == '__main__':
   parser.add_argument("--phoenix_home", help="The location of the Phoenix installation", default="/usr/hdp/current/phoenix-client/")
   parser.add_argument("--hbase_home", help="The location of the HBase installation", default="/usr/hdp/current/hbase-client/")
   parser.add_argument("--phoenix_repo", help="The location of the Phoenix codebase", default=os.path.join(current_dir, "phoenix"))
+  parser.add_argument("--hadoop_home", help="The location of the Hadoop installation", default="/usr/hdp/current/hadoop-client/")
   parser.add_argument('--maven_installation', help="The location of a Maven installation", default=os.path.join(current_dir, 'apache-maven-3.2.5'))
 
   args = parser.parse_args()
