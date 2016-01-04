@@ -30,10 +30,10 @@ PHERF_DRIVER_FILE="pherf-driver.py"
 PHERF_INSTALLER_FILE="pherf-installer.py"
 
 # The Hortonworks repository doesn't contain the pherf-*.py scripts...
-#PHOENIX_REPOSITORY="https://github.com/apache/phoenix.git"
-PHOENIX_REPOSITORY="https://github.com/joshelser/phoenix.git"
-#PHOENIX_REF="master"
-PHOENIX_REF="automated-pherf-testing"
+PHOENIX_REPOSITORY="https://github.com/apache/phoenix.git"
+#PHOENIX_REPOSITORY="https://github.com/joshelser/phoenix.git"
+PHOENIX_REF="master"
+#PHOENIX_REF="automated-pherf-testing"
 
 MAVEN_BINARY_FILENAME="apache-maven-3.2.5-bin.tar.gz"
 MAVEN_BINARY_MD5="b2d88f02bd3a08a9df1f0b0126ebd8dc"
