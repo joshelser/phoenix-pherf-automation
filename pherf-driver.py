@@ -22,6 +22,8 @@ def main(**kwargs):
         logger.warn("Saw non-zero exit code (%d) when running %s" % (exit_code, task))
         return exit_code
 
+  summarize_results(os.path.join(os.path.dirname(os.path.realpath(__file__)), 'RESULTS'))
+
   return 0
 
 def validate_args(kwargs):
@@ -48,6 +50,15 @@ def run_task(task, kwargs):
       '-scenarioFile', '".*%s_scenario.xml"' % task, '-schemaFile', '".*%s_schema.sql"' % task], env=env)
 
   return exitcode
+
+def summarize_results(results_dir):
+  assert os.path.isdir(results_dir), "%s is not a directory"
+  for f in os.listdir(results_dir):
+    results_file = os.path.join(results_dir, f)
+    print "\nResults for %s" % (results_file)
+    with open(results_file, 'r') as fh:
+      for line in fh:
+        print line
 
 if __name__ == '__main__':
   current_dir = os.path.dirname(os.path.realpath(__file__))
