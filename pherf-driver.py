@@ -36,7 +36,7 @@ def validate_args(kwargs):
 
 
 def run_task(task, kwargs):
-  env={}
+  env = os.environ.copy()
   # Why HBASE_DIR and not HBASE_HOME? :shrug:
   env['HBASE_DIR'] = kwargs['hbase_home']
 
@@ -45,7 +45,7 @@ def run_task(task, kwargs):
   assert os.path.isfile(pherf_cluster_script), 'Could not find pherf-cluster.py script at %s' % pherf_cluster_script
 
   exitcode = subprocess.call([pherf_cluster_script, '-l', '-drop', 'ALL', '-stats',
-      '-scenarioFile', '".*%s_scenario.xml"' % task, '-schemaFile', '".*%s_scenario.sql"' % task], env=env)
+      '-scenarioFile', '".*%s_scenario.xml"' % task, '-schemaFile', '".*%s_schema.sql"' % task], env=env)
 
   return exitcode
 

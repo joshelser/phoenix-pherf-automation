@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 
+# Lots of debug
+#set -x
+
 BLACK="\033[0;30m"
 DARK_GRAY="\033[1;30m"
 RED="\033[0;31m"
@@ -27,8 +30,15 @@ PHERF_DRIVER_FILE="pherf-driver.py"
 PHERF_INSTALLER_FILE="pherf-installer.py"
 
 # The Hortonworks repository doesn't contain the pherf-*.py scripts...
-PHOENIX_REPOSITORY="https://github.com/apache/phoenix.git"
-PHOENIX_REF="master"
+#PHOENIX_REPOSITORY="https://github.com/apache/phoenix.git"
+PHOENIX_REPOSITORY="https://github.com/joshelser/phoenix.git"
+#PHOENIX_REF="master"
+PHOENIX_REF="automated-pherf-testing"
+
+MAVEN_BINARY_FILENAME="apache-maven-3.2.5-bin.tar.gz"
+MAVEN_BINARY_MD5="b2d88f02bd3a08a9df1f0b0126ebd8dc"
+MAVEN_BINARY_URL="http://archive.apache.org/dist/maven/maven-3/3.2.5/binaries/apache-maven-3.2.5-bin.tar.gz"
+REMOTE_MAVEN_FILENAME="/tmp/$MAVEN_BINARY_FILENAME"
 
 fail() {
   echo -e "${RED}Error: ${NC}$1 "
@@ -74,7 +84,7 @@ fi
 
 # Shorcuts for ssh and scp without user-interaction, defined after we get the privatekey
 SSH="ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i $pk -o LogLevel=quiet "
-SCP="scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i $pk -o LogLevel=quiet "
+SCP="scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i $pk -o LogLevel=quiet -l 8388608 "
 
 # Wrappers around SSH and SCP to suppress known host spam
 _ssh() {
@@ -108,12 +118,44 @@ echo "Using '$PHERF_DIR' for pherf test"
 
 _ssh $user@$h test -d $PHERF_DIR || fail "$?: Temporary directory '$PHERF_DIR' does not exist"
 
+status "\nDownloading Maven release"
+if [[ ! -f $bin/$MAVEN_BINARY_FILENAME ]]; then
+  wget -O $bin/$MAVEN_BINARY_FILENAME $MAVEN_BINARY_URL || fail "Failed to download Maven installation"
+else
+  echo "Not re-downloading Maven archive"
+fi
+
+test -f $bin/$MAVEN_BINARY_FILENAME || fail "Failed to download Maven binary"
+if [[ ! $MAVEN_BINARY_MD5 == $(md5sum $bin/$MAVEN_BINARY_FILENAME | awk '{print $1}') ]]; then
+  fail "Local Maven tarball checksum does not match expected: $MAVEN_BINARY_MD5"
+fi
+
+status "\nSelectively copying Maven tarball"
+if [[ 0 -eq $(_ssh $user@$h test -f $REMOTE_MAVEN_FILENAME) ]]; then
+  remote_checksum=$(_ssh $user@$h md5sum $REMOTE_MAVEN_FILENAME | awk '{print $1}')
+  if [[ $MAVEN_BINARY_MD5 !=  $remote_checksum ]]; then
+    echo "Remote checksum $remote_checksum did not match expected $MAVEN_BINARY_MD5. Removing remote file."
+    _ssh $user@$h rm $REMOTE_MAVEN_FILENAME || fail "Failed to delete $REMOTE_MAVEN_FILENAME on $h"
+    echo "Copying Maven tarball"
+    _scp $bin/$MAVEN_BINARY_FILENAME "$user@$h":$REMOTE_MAVEN_FILENAME
+  else
+    # Nothing to do, the file exists with the correct checksum. Win.
+    echo "Not copying Maven tarball to $h"
+  fi
+else
+  echo "Maven tarball does not exist on remote host, copying the file"
+  _scp $bin/$MAVEN_BINARY_FILENAME "$user@$h":$REMOTE_MAVEN_FILENAME
+fi
+
 # Copy our data there
 status "\nCopying files to remote host"
-_scp ${bin}/$PHERF_DRIVER_FILE "$user@$h":$PHERF_DIR/
-_scp ${bin}/$PHERF_TASKS_FILE "$user@$h":$PHERF_DIR/
-_scp ${bin}/$PHERF_INSTALLER_FILE "$user@$h":$PHERF_DIR/
-_scp -r ${bin}/$PHERF_CONFIGS "$user@$h":$PHERF_DIR/
+_scp $bin/$PHERF_DRIVER_FILE "$user@$h":$PHERF_DIR/
+_scp $bin/$PHERF_TASKS_FILE "$user@$h":$PHERF_DIR/
+_scp $bin/$PHERF_INSTALLER_FILE "$user@$h":$PHERF_DIR/
+_scp -r $bin/$PHERF_CONFIGS "$user@$h":$PHERF_DIR/
+
+status "\nExtracting Maven archive"
+_ssh $user@$h tar xf $REMOTE_MAVEN_FILENAME -C $PHERF_DIR || fail "Failed to extract Maven archive"
 
 if [[ $user != $test_user ]]; then
   _ssh $user@$h chown -R $test_user "${PHERF_DIR}" || fail "Failed to change ownership of '$PHERF_DIR' to ${test_user}"
