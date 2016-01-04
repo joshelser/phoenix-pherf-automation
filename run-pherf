@@ -149,10 +149,10 @@ fi
 
 # Copy our data there
 status "\nCopying files to remote host"
-_scp $bin/$PHERF_DRIVER_FILE "$user@$h":$PHERF_DIR/
-_scp $bin/$PHERF_TASKS_FILE "$user@$h":$PHERF_DIR/
-_scp $bin/$PHERF_INSTALLER_FILE "$user@$h":$PHERF_DIR/
-_scp -r $bin/$PHERF_CONFIGS "$user@$h":$PHERF_DIR/
+_scp $bin/$PHERF_DRIVER_FILE "$user@$h":$PHERF_DIR/ || fail "Failed to copy $PHERF_DRIVER_FILE"
+_scp $bin/$PHERF_TASKS_FILE "$user@$h":$PHERF_DIR/ || fail "Failed to copy $PHERF_TASKS_FILE"
+_scp $bin/$PHERF_INSTALLER_FILE "$user@$h":$PHERF_DIR/ || fail "Failed to copy $PHERF_INSTALLER_FILE"
+_scp -r $bin/$PHERF_CONFIGS "$user@$h":$PHERF_DIR/ || fail "Failed to copy $PHERF_CONFIGS"
 
 status "\nExtracting Maven archive"
 _ssh $user@$h tar xf $REMOTE_MAVEN_FILENAME -C $PHERF_DIR || fail "Failed to extract Maven archive"
