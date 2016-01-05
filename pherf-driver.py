@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import argparse, logging, os, subprocess, sys
+import argparse, glob, logging, os, subprocess, sys
 
 #HBASE_DIR=/usr/local/lib/hbase ./bin/pherf-cluster.py -l -drop ALL -scenarioFile ".*user_defined_scenario.xml" -schemaFile ".*user_defined_schema.sql"
 
@@ -16,6 +16,7 @@ def main(**kwargs):
         logger.debug('Skipping whitespace-only task')
         continue
 
+      print ""
       logger.info("Running pherf over scenario/schema: '%s'" % (task))
       exit_code = run_task(task, kwargs)
       if exit_code != 0:
@@ -46,19 +47,28 @@ def run_task(task, kwargs):
   pherf_cluster_script = os.path.join(kwargs['phoenix_home'], 'bin', 'pherf-cluster.py')
   assert os.path.isfile(pherf_cluster_script), 'Could not find pherf-cluster.py script at %s' % pherf_cluster_script
 
-  exitcode = subprocess.call([pherf_cluster_script, '-l', '-drop', 'ALL', '-stats',
+  exitcode = subprocess.call([pherf_cluster_script, '-l', '-drop', 'ALL', '-stats', '-q',
       '-scenarioFile', '".*%s_scenario.xml"' % task, '-schemaFile', '".*%s_schema.sql"' % task], env=env)
 
   return exitcode
 
 def summarize_results(results_dir):
   assert os.path.isdir(results_dir), "%s is not a directory"
-  for f in os.listdir(results_dir):
+  print "Data load summary:"
+  for f in glob.glob(os.path.join(results_dir, "RESULT_Data_Load_Summary*")):
     results_file = os.path.join(results_dir, f)
     print "\nResults for %s" % (results_file)
     with open(results_file, 'r') as fh:
       for line in fh:
-        print line
+        print line.rstrip()
+
+  print "\n\nQuery summary:"
+  for f in glob.glob(os.path.join(results_dir, "RESULT_COMBINED*")):
+    results_file = os.path.join(results_dir, f)
+    print "\nResults for %s" % (results_file)
+    with open(results_file, 'r') as fh:
+      for line in fh:
+        print line.rstrip()
 
 if __name__ == '__main__':
   current_dir = os.path.dirname(os.path.realpath(__file__))
