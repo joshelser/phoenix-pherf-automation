@@ -131,7 +131,12 @@ if [[ ! $MAVEN_BINARY_MD5 == $(md5sum $bin/$MAVEN_BINARY_FILENAME | awk '{print 
 fi
 
 status "\nSelectively copying Maven tarball"
-if [[ 0 -eq $(_ssh $user@$h test -f $REMOTE_MAVEN_FILENAME) ]]; then
+
+output=$(_ssh $user@$h test -f $REMOTE_MAVEN_FILENAME)
+maven_tarball_present=$?
+
+if [[ 0 -eq  ${maven_tarball_present} ]]; then
+  echo "Found Maven tarball (in $REMOTE_MAVEN_FILENAME) on $h"
   remote_checksum=$(_ssh $user@$h md5sum $REMOTE_MAVEN_FILENAME | awk '{print $1}')
   if [[ $MAVEN_BINARY_MD5 !=  $remote_checksum ]]; then
     echo "Remote checksum $remote_checksum did not match expected $MAVEN_BINARY_MD5. Removing remote file."

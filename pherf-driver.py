@@ -17,11 +17,12 @@ def main(**kwargs):
         continue
 
       print ""
-      logger.info("Running pherf over scenario/schema: '%s'" % (task))
-      exit_code = run_task(task, kwargs)
-      if exit_code != 0:
-        logger.warn("Saw non-zero exit code (%d) when running %s" % (exit_code, task))
-        return exit_code
+      for driver in ["thick", "thin"]:
+        logger.info("Running pherf over scenario/schema using %s driver: '%s'" % (driver, task))
+        exit_code = run_task(task, kwargs, queryserver=(driver == "thin"))
+        if exit_code != 0:
+          logger.warn("Saw non-zero exit code (%d) when running %s" % (exit_code, task))
+          return exit_code
 
   summarize_results(os.path.join(os.path.dirname(os.path.realpath(__file__)), 'RESULTS'))
 
@@ -38,7 +39,7 @@ def validate_args(kwargs):
   assert os.path.isfile(tasks_file), "%s is not a regular file" % (tasks_file)
 
 
-def run_task(task, kwargs):
+def run_task(task, kwargs, queryserver=False):
   env = os.environ.copy()
   # Why HBASE_DIR and not HBASE_HOME? :shrug:
   env['HBASE_DIR'] = kwargs['hbase_home']
@@ -47,8 +48,15 @@ def run_task(task, kwargs):
   pherf_cluster_script = os.path.join(kwargs['phoenix_home'], 'bin', 'pherf-cluster.py')
   assert os.path.isfile(pherf_cluster_script), 'Could not find pherf-cluster.py script at %s' % pherf_cluster_script
 
-  exitcode = subprocess.call([pherf_cluster_script, '-l', '-drop', 'ALL', '-stats', '-q',
-      '-scenarioFile', '".*%s_scenario.xml"' % task, '-schemaFile', '".*%s_schema.sql"' % task], env=env)
+  arguments = [pherf_cluster_script, '-l', '-drop', 'ALL', '-stats', '-q',
+      '-scenarioFile', '".*%s_scenario.xml"' % task, '-schemaFile', '".*%s_schema.sql"' % task]
+  if queryserver:
+    queryserver_url = kwargs["queryserver_url"]
+    assert queryserver_url, "The QueryServer URL must be provided"
+    arguments.append("-t")
+    arguments.append("-s")
+    arguments.append(queryserver_url)
+  exitcode = subprocess.call(arguments, env=env)
 
   return exitcode
 
@@ -79,7 +87,7 @@ if __name__ == '__main__':
       default=os.path.join(current_dir, 'pherf-tasks.txt'))
   parser.add_argument("-c", "--config", help="Path to the pherf configuration directory", default=os.path.join(current_dir,
       'pherf-configs'))
-  parser.add_argument("--thin", help="Use the Phoenix Thin Driver", default=False)
+  parser.add_argument("--queryserver_url", help="The URL of the Phoenix QueryServer", default="http://localhost:8765")
   parser.add_argument("--hbase_home", help="The location of the HBase installation", default="/usr/hdp/current/hbase-client/")
   parser.add_argument("--phoenix_home", help="The location of the Phoenix installation", default="/usr/hdp/current/phoenix-client/")
 

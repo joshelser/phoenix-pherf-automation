@@ -24,15 +24,31 @@ def main(**kwargs):
   copy_fresh(os.path.join(phoenix_repo, 'bin', 'phoenix_utils.py'), os.path.join(phoenix_home, 'bin', 'phoenix_utils.py'))
 
   # Build and install the phoenix-pherf jars because Ambari doesn't
-  build_and_install_pherf_jars(phoenix_repo, phoenix_home, maven_installation)
+  exit_code = build_and_install_pherf_jars(phoenix_repo, phoenix_home, maven_installation)
+  if exit_code:
+    return exit_code
 
-  # Remove any broken symlinks installed by Ambari
+  # Remove any broken symlinks installed by Ambari (PHOENIX-2563)
+  logger.info("Removing dead symlinks in hbase and hadoop installations")
   remove_bad_symlinks(os.path.join(hbase_home, 'lib'))
   remove_bad_symlinks(os.path.join(hadoop_home, 'lib'))
 
+  # Work around the busted services file in phoenix-thin-client.jar (PHOENIX-2531)
+  logger.info("Copying phoenix-thin-client.jar")
+  src_server_client_jar = glob.glob(os.path.join(phoenix_repo, 'phoenix-server-client', 'target', 'phoenix-*thin-client.jar'))[0]
+  dest_server_client_jar = glob.glob(os.path.join(phoenix_home, 'phoenix-*-thin-client.jar'))[0]
+  copy_fresh(src_server_client_jar, dest_server_client_jar)
+
+  # If we build against the newer avatica client libs, we have to make sure PQS is also built against them
+  logger.info("Copying phoenix-server.jar")
+  src_server_jar = glob.glob(os.path.join(phoenix_repo, 'phoenix-server', 'target', 'phoenix-server-*-runnable.jar'))[0]
+  dest_server_jar = glob.glob(os.path.join(phoenix_home, 'lib', 'phoenix-server-*-runnable.jar'))[0]
+  copy_fresh(src_server_jar, dest_server_jar)
+
   copy_extra_phoenix_libs(hbase_home, phoenix_home)
 
-  return 0
+  # Make sure we restart the queryserver to pick up the new libs we copied into place
+  return restart_queryserver(phoenix_home)
 
 def validate_args(kwargs):
   phoenix_home = kwargs['phoenix_home']
@@ -78,7 +94,9 @@ def copy(src, dest):
     shutil.copy(src, dest)
 
 def build_and_install_pherf_jars(phoenix_repo, phoenix_home, maven_installation):
-  exit_code = subprocess.call([os.path.join(maven_installation, 'bin', 'mvn'), 'package', '-DskipTests'], cwd=phoenix_repo)
+  args = [os.path.join(maven_installation, 'bin', 'mvn'), 'package', '-DskipTests', '-Dcalcite.version=1.6.0-SNAPSHOT']
+  logger.info("Running '%s' in %s" % (' '.join(args), phoenix_repo))
+  exit_code = subprocess.call(args, cwd=phoenix_repo)
   # zero is "false-y"
   if exit_code:
     return exit_code
@@ -107,6 +125,18 @@ def copy_extra_phoenix_libs(hbase_home, phoenix_home):
     if not os.path.islink(dest):
       logger.debug("Symlinking %s to %s" % (source, dest))
       os.symlink(source, dest)
+
+def restart_queryserver(phoenix_home):
+  assert phoenix_home, "The phoenix home value was undefined"
+  for action in ['stop', 'start']:
+    args = ['su', '-c', '%s %s' % (os.path.join(phoenix_home, 'bin', 'queryserver.py'), action), "-", "hbase"]
+    logger.info("Running %s" % (" ".join(args)))
+    exit_code = subprocess.call(args)
+    # Don't exit if we fail to stop the server, it might not be running
+    if exit_code and action != 'stop':
+      return exit_code
+
+  return 0
 
 if __name__ == '__main__':
   current_dir = os.path.dirname(os.path.realpath(__file__))
