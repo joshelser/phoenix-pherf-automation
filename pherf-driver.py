@@ -57,6 +57,7 @@ def run_task(task, kwargs, queryserver=False):
     arguments.append("-t")
     arguments.append("-s")
     arguments.append(queryserver_url)
+  logger.info("Running %s with environment=%s" % (' '.join(arguments), env))
   exitcode = subprocess.call(arguments, env=env)
 
   return exitcode
