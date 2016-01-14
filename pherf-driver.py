@@ -43,6 +43,7 @@ def run_task(task, kwargs, queryserver=False):
   env = os.environ.copy()
   # Why HBASE_DIR and not HBASE_HOME? :shrug:
   env['HBASE_DIR'] = kwargs['hbase_home']
+  env['HBASE_HOME'] = kwargs['hbase_home']
 
   # Make sure we can find pherf-cluster.py to run
   pherf_cluster_script = os.path.join(kwargs['phoenix_home'], 'bin', 'pherf-cluster.py')
