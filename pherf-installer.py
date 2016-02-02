@@ -13,6 +13,7 @@ def main(**kwargs):
   hbase_home = kwargs['hbase_home']
   hadoop_home = kwargs['hadoop_home']
   maven_installation = kwargs['maven_installation']
+  java_home = kwargs['java_home']
 
   logger.info("Copying phoenix-pherf directory")
   copy_fresh(os.path.join(phoenix_repo, 'phoenix-pherf'), os.path.join(phoenix_home, 'phoenix-pherf'))
@@ -24,7 +25,7 @@ def main(**kwargs):
   copy_fresh(os.path.join(phoenix_repo, 'bin', 'phoenix_utils.py'), os.path.join(phoenix_home, 'bin', 'phoenix_utils.py'))
 
   # Build and install the phoenix-pherf jars because Ambari doesn't
-  exit_code = build_and_install_pherf_jars(phoenix_repo, phoenix_home, maven_installation)
+  exit_code = build_and_install_pherf_jars(phoenix_repo, phoenix_home, maven_installation, java_home)
   if exit_code:
     return exit_code
 
@@ -54,9 +55,10 @@ def validate_args(kwargs):
   phoenix_home = kwargs['phoenix_home']
   phoenix_repo = kwargs['phoenix_repo']
   maven_installation = kwargs['maven_installation']
+  java_home = kwargs['java_home']
 
   # Check that all paths that should be directories are such
-  for d in [phoenix_home, phoenix_repo, maven_installation]:
+  for d in [phoenix_home, phoenix_repo, maven_installation, java_home]:
     assert os.path.isdir(d), "%s is not a directory" % (d)
 
 def copy_if_missing(src, dest):
@@ -93,10 +95,13 @@ def copy(src, dest):
     logger.debug("Copying file %s to %s" % (src, dest))
     shutil.copy(src, dest)
 
-def build_and_install_pherf_jars(phoenix_repo, phoenix_home, maven_installation):
-  args = [os.path.join(maven_installation, 'bin', 'mvn'), 'package', '-DskipTests', '-Dcalcite.version=1.6.0-SNAPSHOT']
+def build_and_install_pherf_jars(phoenix_repo, phoenix_home, maven_installation, java_home):
+  env = os.environ.copy()
+  env['JAVA_HOME'] = java_home
+  env['PATH'] = env['PATH'] + ':' + os.path.join(java_home, 'bin')
+  args = [os.path.join(maven_installation, 'bin', 'mvn'), 'package', '-DskipTests', '-Dcalcite.version=1.6.0']
   logger.info("Running '%s' in %s" % (' '.join(args), phoenix_repo))
-  exit_code = subprocess.call(args, cwd=phoenix_repo)
+  exit_code = subprocess.call(args, cwd=phoenix_repo, env=env)
   # zero is "false-y"
   if exit_code:
     return exit_code
@@ -138,6 +143,12 @@ def restart_queryserver(phoenix_home):
 
   return 0
 
+def find_java_home():
+  dirs = glob.glob('/usr/jdk64/jdk*')
+  assert len(dirs) > 0, "Found no JDKs under /usr/jdk64, try specifying by --java_home"
+  # first one is the largest (most recent) jdk
+  return dirs[0]
+
 if __name__ == '__main__':
   current_dir = os.path.dirname(os.path.realpath(__file__))
   logging.basicConfig(format='%(asctime)s %(message)s', level=logging.DEBUG)
@@ -148,6 +159,7 @@ if __name__ == '__main__':
   parser.add_argument("--phoenix_repo", help="The location of the Phoenix codebase", default=os.path.join(current_dir, "phoenix"))
   parser.add_argument("--hadoop_home", help="The location of the Hadoop installation", default="/usr/hdp/current/hadoop-client/")
   parser.add_argument('--maven_installation', help="The location of a Maven installation", default=os.path.join(current_dir, 'apache-maven-3.2.5'))
+  parser.add_argument('--java_home', help="The location of JAVA_HOME", default=find_java_home())
 
   args = parser.parse_args()
   # convert the arguments to kwargs
