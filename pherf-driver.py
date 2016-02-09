@@ -33,8 +33,9 @@ def validate_args(kwargs):
   tasks_file = kwargs['tasks']
   hbase_home = kwargs['hbase_home']
   phoenix_home = kwargs['phoenix_home']
+  java_home = kwargs['java_home']
 
-  for d in [config_dir, hbase_home, phoenix_home]:
+  for d in [config_dir, hbase_home, phoenix_home, java_home]:
     assert os.path.isdir(d), "%s is not a directory" % (d)
   assert os.path.isfile(tasks_file), "%s is not a regular file" % (tasks_file)
 
@@ -44,6 +45,8 @@ def run_task(task, kwargs, queryserver=False):
   # Why HBASE_DIR and not HBASE_HOME? :shrug:
   env['HBASE_DIR'] = kwargs['hbase_home']
   env['HBASE_HOME'] = kwargs['hbase_home']
+  env['JAVA_HOME'] = kwargs['java_home']
+  env['PATH'] = env['PATH'] + ':' + env['JAVA_HOME'] + '/bin'
 
   # Make sure we can find pherf-cluster.py to run
   pherf_cluster_script = os.path.join(kwargs['phoenix_home'], 'bin', 'pherf-cluster.py')
@@ -80,6 +83,12 @@ def summarize_results(results_dir):
       for line in fh:
         print line.rstrip()
 
+def find_java_home():
+  dirs = glob.glob('/usr/jdk64/jdk*')
+  assert len(dirs) > 0, "Found no JDKs under /usr/jdk64, try specifying by --java_home"
+  # first one is the largest (most recent) jdk
+  return dirs[0]
+
 if __name__ == '__main__':
   current_dir = os.path.dirname(os.path.realpath(__file__))
   logging.basicConfig(format='%(asctime)s %(message)s', level=logging.INFO)
@@ -92,6 +101,7 @@ if __name__ == '__main__':
   parser.add_argument("--queryserver_url", help="The URL of the Phoenix QueryServer", default="http://localhost:8765")
   parser.add_argument("--hbase_home", help="The location of the HBase installation", default="/usr/hdp/current/hbase-client/")
   parser.add_argument("--phoenix_home", help="The location of the Phoenix installation", default="/usr/hdp/current/phoenix-client/")
+  parser.add_argument("--java_home", help="The location of JAVA_HOME", default=find_java_home())
 
   args = parser.parse_args()
   # convert the arguments to kwargs
